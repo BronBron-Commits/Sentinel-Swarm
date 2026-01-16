@@ -7,7 +7,7 @@
 
 enum class Formation { LINE, ORBIT };
 static Formation g_formation = Formation::LINE;
-static bool g_use_perspective = false;
+static bool g_tilted_view = false;
 
 void swarm_render_set_formation(int f) {
     if (f == 1) g_formation = Formation::LINE;
@@ -15,7 +15,7 @@ void swarm_render_set_formation(int f) {
 }
 
 void swarm_render_toggle_perspective() {
-    g_use_perspective = !g_use_perspective;
+    g_tilted_view = !g_tilted_view;
 }
 
 static SDL_Window* window = nullptr;
@@ -35,22 +35,18 @@ static void setup_camera() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
-    if (g_use_perspective) {
-        float aspect = 800.f / 600.f;
-        glFrustum(-aspect, aspect, -1.0, 1.0, 2.0, 50.0);
-    } else {
-        glOrtho(-2, 12, -6, 6, -20, 20);
-    }
+    /* Single, stable projection */
+    glOrtho(-2, 12, -6, 6, -50, 50);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    if (g_use_perspective) {
-        glTranslatef(0.f, -2.5f, -14.f);
+    /* Pull camera back */
+    glTranslatef(0.f, 0.f, -12.f);
+
+    /* Rotate downward if enabled */
+    if (g_tilted_view) {
         glRotatef(55.f, 1.f, 0.f, 0.f);
-    } else {
-        glTranslatef(0.f, -1.5f, -6.f);
-        glRotatef(35.f, 1.f, 0.f, 0.f);
     }
 }
 
@@ -94,26 +90,25 @@ static float visual_height(const SwarmState& s, int i) {
 
 static void draw_cube(float x, float y, float z, float s) {
     float h = s * 0.5f;
-
     glBegin(GL_QUADS);
 
-    glVertex3f(x-h, y-h, z+h); glVertex3f(x+h, y-h, z+h);
-    glVertex3f(x+h, y+h, z+h); glVertex3f(x-h, y+h, z+h);
+    glVertex3f(x-h,y-h,z+h); glVertex3f(x+h,y-h,z+h);
+    glVertex3f(x+h,y+h,z+h); glVertex3f(x-h,y+h,z+h);
 
-    glVertex3f(x-h, y-h, z-h); glVertex3f(x+h, y-h, z-h);
-    glVertex3f(x+h, y+h, z-h); glVertex3f(x-h, y+h, z-h);
+    glVertex3f(x-h,y-h,z-h); glVertex3f(x+h,y-h,z-h);
+    glVertex3f(x+h,y+h,z-h); glVertex3f(x-h,y+h,z-h);
 
-    glVertex3f(x-h, y+h, z-h); glVertex3f(x+h, y+h, z-h);
-    glVertex3f(x+h, y+h, z+h); glVertex3f(x-h, y+h, z+h);
+    glVertex3f(x-h,y+h,z-h); glVertex3f(x+h,y+h,z-h);
+    glVertex3f(x+h,y+h,z+h); glVertex3f(x-h,y+h,z+h);
 
-    glVertex3f(x-h, y-h, z-h); glVertex3f(x+h, y-h, z-h);
-    glVertex3f(x+h, y-h, z+h); glVertex3f(x-h, y-h, z+h);
+    glVertex3f(x-h,y-h,z-h); glVertex3f(x+h,y-h,z-h);
+    glVertex3f(x+h,y-h,z+h); glVertex3f(x-h,y-h,z+h);
 
-    glVertex3f(x-h, y-h, z-h); glVertex3f(x-h, y+h, z-h);
-    glVertex3f(x-h, y+h, z+h); glVertex3f(x-h, y-h, z+h);
+    glVertex3f(x-h,y-h,z-h); glVertex3f(x-h,y+h,z-h);
+    glVertex3f(x-h,y+h,z+h); glVertex3f(x-h,y-h,z+h);
 
-    glVertex3f(x+h, y-h, z-h); glVertex3f(x+h, y+h, z-h);
-    glVertex3f(x+h, y+h, z+h); glVertex3f(x+h, y-h, z+h);
+    glVertex3f(x+h,y-h,z-h); glVertex3f(x+h,y+h,z-h);
+    glVertex3f(x+h,y+h,z+h); glVertex3f(x+h,y-h,z+h);
 
     glEnd();
 }
@@ -150,44 +145,33 @@ bool swarm_render_init(int w, int h) {
     gl_ctx = SDL_GL_CreateContext(window);
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f,0.05f,0.08f,1.f);
-    glLineWidth(1.2f);
     return true;
 }
 
 void swarm_render_draw(const SwarmState& s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup_camera();
-
     draw_grid();
 
-    /* Communication links */
     glBegin(GL_LINES);
-    glColor3f(0.2f, 0.6f, 0.9f);
+    glColor3f(0.2f,0.6f,0.9f);
     for (uint32_t i = 0; i < s.agents.size(); i++) {
         auto nb = find_neighbors(s, i, NEIGHBOR_RADIUS);
-        auto& a = s.agents[i];
-        float za = visual_height(s, i) * 1.5f;
-
+        float zi = visual_height(s,i)*1.5f;
         for (uint32_t j : nb.indices) {
             if (j <= i) continue;
-            auto& b = s.agents[j];
-            float zb = visual_height(s, j) * 1.5f;
-
-            glVertex3f(a.x, a.y, za);
-            glVertex3f(b.x, b.y, zb);
+            float zj = visual_height(s,j)*1.5f;
+            glVertex3f(s.agents[i].x, s.agents[i].y, zi);
+            glVertex3f(s.agents[j].x, s.agents[j].y, zj);
         }
     }
     glEnd();
 
-    /* Agents */
     for (uint32_t i = 0; i < s.agents.size(); i++) {
-        float h = visual_height(s, i);
-        float z = h * 1.5f;
-        float size = 0.3f + h * 0.25f;
-
-        glColor3f(h, 0.3f*(1.f-h), 1.f-h);
-        auto& a = s.agents[i];
-        draw_cube(a.x, a.y, z + size*0.5f, size);
+        float h = visual_height(s,i);
+        float size = 0.3f + h*0.25f;
+        glColor3f(h,0.3f*(1.f-h),1.f-h);
+        draw_cube(s.agents[i].x, s.agents[i].y, h*1.5f + size*0.5f, size);
     }
 
     SDL_GL_SwapWindow(window);
