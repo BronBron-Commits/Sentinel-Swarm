@@ -150,6 +150,3 @@ This project is intended as:
 ## 📜 License
 
 MIT License.
-
-say which and we’ll tailor it.
-```
