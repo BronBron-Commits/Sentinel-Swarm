@@ -8,16 +8,9 @@ void swarm_update(SwarmState& state, float dt);
 
 int main() {
     SwarmState state{};
-    state.tick = 0;
 
     for (uint32_t i = 0; i < 6; ++i) {
-        state.agents.push_back({
-            i,
-            float(i * 2),
-            0.0f,
-            0.0f,
-            0.0f
-        });
+        state.agents.push_back({ i, float(i * 2), 0.f, 0.f, 0.f });
     }
 
     if (!swarm_render_init(800, 600)) {
@@ -42,6 +35,9 @@ int main() {
                 if (e.key.keysym.sym == SDLK_3) {
                     state.formation = FormationMode::ORBIT;
                     swarm_render_set_formation(3);
+                }
+                if (e.key.keysym.sym == SDLK_p) {
+                    swarm_render_toggle_perspective();
                 }
             }
         }
