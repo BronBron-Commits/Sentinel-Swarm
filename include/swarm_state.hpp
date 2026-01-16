@@ -1,25 +1,23 @@
 #pragma once
-
 #include <vector>
 #include <cstdint>
 
+enum class FormationMode {
+    LINE  = 1,
+    WEDGE = 2,
+    ORBIT = 3
+};
+
 struct SwarmAgent {
     uint32_t id;
-
-    // position
     float x;
     float y;
-
-    // velocity
     float vx;
     float vy;
 };
 
 struct SwarmState {
-    uint64_t tick;
-
-    // IMPORTANT:
-    // agents vector order is deterministic and stable
-    // (sorted by id, never reordered during simulation)
+    uint64_t tick = 0;
+    FormationMode formation = FormationMode::LINE;
     std::vector<SwarmAgent> agents;
 };

@@ -35,17 +35,23 @@ int main() {
                 running = false;
 
             if (e.type == SDL_KEYDOWN) {
-    if (e.key.keysym.sym == SDLK_1) swarm_render_set_formation(1);
-    if (e.key.keysym.sym == SDLK_2) swarm_render_set_formation(2);
-    if (e.key.keysym.sym == SDLK_3) swarm_render_set_formation(3);
-}
-
-
+                if (e.key.keysym.sym == SDLK_1) {
+                    state.formation = FormationMode::LINE;
+                    swarm_render_set_formation(1);
+                }
+                if (e.key.keysym.sym == SDLK_2) {
+                    state.formation = FormationMode::WEDGE;
+                    swarm_render_set_formation(2);
+                }
+                if (e.key.keysym.sym == SDLK_3) {
+                    state.formation = FormationMode::ORBIT;
+                    swarm_render_set_formation(3);
+                }
+            }
         }
 
         swarm_update(state, dt);
         swarm_render_draw(state);
-
         SDL_Delay(16);
     }
 
