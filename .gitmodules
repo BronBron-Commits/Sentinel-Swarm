@@ -1,0 +1,6 @@
+[submodule "external/sentinel-sim-core"]
+	path = external/sentinel-sim-core
+	url = git@github.com:BronBron-Commits/Sentinel-sim-core.git
+[submodule "external/sentinel-orchestra"]
+	path = external/sentinel-orchestra
+	url = git@github.com:BronBron-Commits/Sentinel-Orchestra.git
