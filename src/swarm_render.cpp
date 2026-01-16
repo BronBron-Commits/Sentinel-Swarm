@@ -97,90 +97,60 @@ static void draw_cube(float x, float y, float z, float s) {
 
     glBegin(GL_QUADS);
 
-    /* Top */
-    glVertex3f(x-h, y-h, z+h);
-    glVertex3f(x+h, y-h, z+h);
-    glVertex3f(x+h, y+h, z+h);
-    glVertex3f(x-h, y+h, z+h);
+    glVertex3f(x-h, y-h, z+h); glVertex3f(x+h, y-h, z+h);
+    glVertex3f(x+h, y+h, z+h); glVertex3f(x-h, y+h, z+h);
 
-    /* Bottom */
-    glVertex3f(x-h, y-h, z-h);
-    glVertex3f(x+h, y-h, z-h);
-    glVertex3f(x+h, y+h, z-h);
-    glVertex3f(x-h, y+h, z-h);
+    glVertex3f(x-h, y-h, z-h); glVertex3f(x+h, y-h, z-h);
+    glVertex3f(x+h, y+h, z-h); glVertex3f(x-h, y+h, z-h);
 
-    /* Front */
-    glVertex3f(x-h, y+h, z-h);
-    glVertex3f(x+h, y+h, z-h);
-    glVertex3f(x+h, y+h, z+h);
-    glVertex3f(x-h, y+h, z+h);
+    glVertex3f(x-h, y+h, z-h); glVertex3f(x+h, y+h, z-h);
+    glVertex3f(x+h, y+h, z+h); glVertex3f(x-h, y+h, z+h);
 
-    /* Back */
-    glVertex3f(x-h, y-h, z-h);
-    glVertex3f(x+h, y-h, z-h);
-    glVertex3f(x+h, y-h, z+h);
-    glVertex3f(x-h, y-h, z+h);
+    glVertex3f(x-h, y-h, z-h); glVertex3f(x+h, y-h, z-h);
+    glVertex3f(x+h, y-h, z+h); glVertex3f(x-h, y-h, z+h);
 
-    /* Left */
-    glVertex3f(x-h, y-h, z-h);
-    glVertex3f(x-h, y+h, z-h);
-    glVertex3f(x-h, y+h, z+h);
-    glVertex3f(x-h, y-h, z+h);
+    glVertex3f(x-h, y-h, z-h); glVertex3f(x-h, y+h, z-h);
+    glVertex3f(x-h, y+h, z+h); glVertex3f(x-h, y-h, z+h);
 
-    /* Right */
-    glVertex3f(x+h, y-h, z-h);
-    glVertex3f(x+h, y+h, z-h);
-    glVertex3f(x+h, y+h, z+h);
-    glVertex3f(x+h, y-h, z+h);
+    glVertex3f(x+h, y-h, z-h); glVertex3f(x+h, y+h, z-h);
+    glVertex3f(x+h, y+h, z+h); glVertex3f(x+h, y-h, z+h);
 
     glEnd();
 }
 
 static void draw_grid() {
     glBegin(GL_LINES);
-
     for (float x = GRID_MIN_X; x <= GRID_MAX_X; x += GRID_STEP) {
         bool major = (int(x) % GRID_MAJOR) == 0;
-        if (major) glColor3f(0.25f, 0.25f, 0.3f);
-        else       glColor3f(0.15f, 0.15f, 0.2f);
-
+        if (major) glColor3f(0.25f,0.25f,0.3f);
+        else       glColor3f(0.15f,0.15f,0.2f);
         glVertex3f(x, GRID_MIN_Y, 0.f);
         glVertex3f(x, GRID_MAX_Y, 0.f);
     }
-
     for (float y = GRID_MIN_Y; y <= GRID_MAX_Y; y += GRID_STEP) {
         bool major = (int(y) % GRID_MAJOR) == 0;
-        if (major) glColor3f(0.25f, 0.25f, 0.3f);
-        else       glColor3f(0.15f, 0.15f, 0.2f);
-
+        if (major) glColor3f(0.25f,0.25f,0.3f);
+        else       glColor3f(0.15f,0.15f,0.2f);
         glVertex3f(GRID_MIN_X, y, 0.f);
         glVertex3f(GRID_MAX_X, y, 0.f);
     }
-
     glEnd();
 }
 
 bool swarm_render_init(int w, int h) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return false;
-
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    window = SDL_CreateWindow(
-        "Sentinel Swarm",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        w, h,
-        SDL_WINDOW_OPENGL
-    );
+    window = SDL_CreateWindow("Sentinel Swarm",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        w, h, SDL_WINDOW_OPENGL);
     if (!window) return false;
 
     gl_ctx = SDL_GL_CreateContext(window);
-    if (!gl_ctx) return false;
-
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.05f, 0.05f, 0.08f, 1.f);
-
+    glClearColor(0.05f,0.05f,0.08f,1.f);
+    glLineWidth(1.2f);
     return true;
 }
 
@@ -190,15 +160,34 @@ void swarm_render_draw(const SwarmState& s) {
 
     draw_grid();
 
+    /* Communication links */
+    glBegin(GL_LINES);
+    glColor3f(0.2f, 0.6f, 0.9f);
+    for (uint32_t i = 0; i < s.agents.size(); i++) {
+        auto nb = find_neighbors(s, i, NEIGHBOR_RADIUS);
+        auto& a = s.agents[i];
+        float za = visual_height(s, i) * 1.5f;
+
+        for (uint32_t j : nb.indices) {
+            if (j <= i) continue;
+            auto& b = s.agents[j];
+            float zb = visual_height(s, j) * 1.5f;
+
+            glVertex3f(a.x, a.y, za);
+            glVertex3f(b.x, b.y, zb);
+        }
+    }
+    glEnd();
+
+    /* Agents */
     for (uint32_t i = 0; i < s.agents.size(); i++) {
         float h = visual_height(s, i);
         float z = h * 1.5f;
         float size = 0.3f + h * 0.25f;
 
-        glColor3f(h, 0.3f * (1.f - h), 1.f - h);
-
+        glColor3f(h, 0.3f*(1.f-h), 1.f-h);
         auto& a = s.agents[i];
-        draw_cube(a.x, a.y, z + size * 0.5f, size);
+        draw_cube(a.x, a.y, z + size*0.5f, size);
     }
 
     SDL_GL_SwapWindow(window);
