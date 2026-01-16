@@ -19,7 +19,7 @@ target_include_directories(simcore PUBLIC
 )
 
 # =========================
-# Orchestra Core
+# Sentinel Orchestra Core
 # =========================
 add_subdirectory(external/sentinel-orchestra)
 
