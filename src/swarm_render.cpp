@@ -5,129 +5,64 @@
 #include <GL/gl.h>
 #include <cmath>
 
+enum class Formation { LINE, WEDGE, ORBIT };
+static Formation g_formation = Formation::LINE;
+
+void swarm_render_set_formation(int f) {
+    if (f == 1) g_formation = Formation::LINE;
+    else if (f == 2) g_formation = Formation::WEDGE;
+    else if (f == 3) g_formation = Formation::ORBIT;
+}
+
 static SDL_Window* window = nullptr;
 static SDL_GLContext gl_ctx = nullptr;
 
-// World bounds for visualization
 static constexpr float WORLD_MIN_X = -2.0f;
 static constexpr float WORLD_MAX_X = 12.0f;
 static constexpr float WORLD_MIN_Y = -6.0f;
 static constexpr float WORLD_MAX_Y = 6.0f;
 
-// Must match simulation
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
 static constexpr int CIRCLE_SEGMENTS = 48;
 static constexpr int MAX_NEIGHBORS = 6;
 
-static float norm_x(float x) {
-    return (x - WORLD_MIN_X) / (WORLD_MAX_X - WORLD_MIN_X) * 2.0f - 1.0f;
-}
+static float nx(float x){return (x-WORLD_MIN_X)/(WORLD_MAX_X-WORLD_MIN_X)*2.f-1.f;}
+static float ny(float y){return (y-WORLD_MIN_Y)/(WORLD_MAX_Y-WORLD_MIN_Y)*2.f-1.f;}
 
-static float norm_y(float y) {
-    return (y - WORLD_MIN_Y) / (WORLD_MAX_Y - WORLD_MIN_Y) * 2.0f - 1.0f;
-}
+static void draw_circle(float cx,float cy,float r){
+ glBegin(GL_LINE_LOOP);
+ for(int i=0;i<CIRCLE_SEGMENTS;i++){
+  float t=2.f*3.1415926f*i/CIRCLE_SEGMENTS;
+  glVertex2f(nx(cx+cosf(t)*r),ny(cy+sinf(t)*r));}
+ glEnd();}
 
-static void draw_circle(float cx, float cy, float r) {
-    glBegin(GL_LINE_LOOP);
-    for (int i = 0; i < CIRCLE_SEGMENTS; ++i) {
-        const float t = 2.0f * 3.1415926f * float(i) / float(CIRCLE_SEGMENTS);
-        glVertex2f(norm_x(cx + std::cos(t) * r), norm_y(cy + std::sin(t) * r));
-    }
-    glEnd();
-}
+static void color_from_density(int n){float t=fminf(n/float(MAX_NEIGHBORS),1.f);glColor3f(t,0.6f*(1.f-t),1.f-t);}
 
-static void color_from_density(int neighbors) {
-    const float t = std::fmin(float(neighbors) / float(MAX_NEIGHBORS), 1.0f);
-    glColor3f(t, 0.6f * (1.0f - t), 1.0f - t);
-}
+static void center_of_mass(const SwarmState&s,float&cx,float&cy){cx=cy=0;for(auto&a:s.agents){cx+=a.x;cy+=a.y;}cx/=s.agents.size();cy/=s.agents.size();}
 
-static void draw_line_formation(const SwarmState& state) {
-    float cx = 0.0f;
-    float cy = 0.0f;
-    for (const auto& a : state.agents) {
-        cx += a.x;
-        cy += a.y;
-    }
-    cx /= state.agents.size();
-    cy /= state.agents.size();
+static void draw_line(const SwarmState&s){float cx,cy;center_of_mass(s,cx,cy);float sp=1.2f;int n=s.agents.size();float st=cx-sp*(n-1)*0.5f;
+ glBegin(GL_LINE_STRIP);glColor3f(.4f,.4f,.4f);for(int i=0;i<n;i++)glVertex2f(nx(st+i*sp),ny(cy));glEnd();}
 
-    const float spacing = 1.2f;
-    const int n = state.agents.size();
-    const float start = cx - spacing * float(n - 1) * 0.5f;
+static void draw_wedge(const SwarmState&s){float cx,cy;center_of_mass(s,cx,cy);float sp=1.0f;int n=s.agents.size();
+ glBegin(GL_LINE_STRIP);glColor3f(.4f,.4f,.4f);for(int i=0;i<n;i++){float x=cx+i*sp;float y=cy+(i%2?i:-i)*0.3f;glVertex2f(nx(x),ny(y));}glEnd();}
 
-    glBegin(GL_LINE_STRIP);
-    glColor3f(0.4f, 0.4f, 0.4f);
-    for (int i = 0; i < n; ++i) {
-        const float x = start + float(i) * spacing;
-        glVertex2f(norm_x(x), norm_y(cy));
-    }
-    glEnd();
-}
+static void draw_orbit(const SwarmState&s){float cx,cy;center_of_mass(s,cx,cy);float r=2.5f;int n=s.agents.size();
+ glBegin(GL_LINE_LOOP);glColor3f(.4f,.4f,.4f);for(int i=0;i<n;i++){float t=2.f*3.1415926f*i/n;glVertex2f(nx(cx+cosf(t)*r),ny(cy+sinf(t)*r));}glEnd();}
 
-bool swarm_render_init(int width, int height) {
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        return false;
+bool swarm_render_init(int w,int h){if(SDL_Init(SDL_INIT_VIDEO)!=0)return false;SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
+ window=SDL_CreateWindow("Sentinel Swarm",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,w,h,SDL_WINDOW_OPENGL);
+ if(!window)return false;gl_ctx=SDL_GL_CreateContext(window);if(!gl_ctx)return false;
+ glClearColor(.05f,.05f,.08f,1);glPointSize(8);glLineWidth(1.2f);return true;}
 
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+void swarm_render_draw(const SwarmState& s){glClear(GL_COLOR_BUFFER_BIT);
+ if(g_formation==Formation::LINE)draw_line(s);
+ else if(g_formation==Formation::WEDGE)draw_wedge(s);
+ else draw_orbit(s);
+ glColor3f(.25f,.35f,.45f);for(auto&a:s.agents)draw_circle(a.x,a.y,NEIGHBOR_RADIUS);
+ glBegin(GL_LINES);glColor3f(.2f,.5f,.7f);
+ for(uint32_t i=0;i<s.agents.size();i++){auto nb=find_neighbors(s,i,NEIGHBOR_RADIUS);auto&a=s.agents[i];
+  for(uint32_t j:nb.indices){if(j<=i)continue;auto&b=s.agents[j];glVertex2f(nx(a.x),ny(a.y));glVertex2f(nx(b.x),ny(b.y));}}glEnd();
+ glBegin(GL_POINTS);for(uint32_t i=0;i<s.agents.size();i++){auto nb=find_neighbors(s,i,NEIGHBOR_RADIUS);color_from_density(nb.indices.size());auto&a=s.agents[i];glVertex2f(nx(a.x),ny(a.y));}glEnd();
+ SDL_GL_SwapWindow(window);}
 
-    window = SDL_CreateWindow("Sentinel Swarm", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        width, height, SDL_WINDOW_OPENGL);
-
-    if (!window)
-        return false;
-
-    gl_ctx = SDL_GL_CreateContext(window);
-    if (!gl_ctx)
-        return false;
-
-    glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
-    glPointSize(8.0f);
-    glLineWidth(1.2f);
-
-    return true;
-}
-
-void swarm_render_draw(const SwarmState& state) {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Formation overlay (guide only)
-    draw_line_formation(state);
-
-    // Neighbor radius circles
-    glColor3f(0.25f, 0.35f, 0.45f);
-    for (const auto& agent : state.agents)
-        draw_circle(agent.x, agent.y, NEIGHBOR_RADIUS);
-
-    // Neighbor links
-    glBegin(GL_LINES);
-    glColor3f(0.2f, 0.5f, 0.7f);
-    for (uint32_t i = 0; i < state.agents.size(); ++i) {
-        const auto neighbors = find_neighbors(state, i, NEIGHBOR_RADIUS);
-        const auto& a = state.agents[i];
-        for (uint32_t n : neighbors.indices) {
-            if (n <= i) continue;
-            const auto& b = state.agents[n];
-            glVertex2f(norm_x(a.x), norm_y(a.y));
-            glVertex2f(norm_x(b.x), norm_y(b.y));
-        }
-    }
-    glEnd();
-
-    // Agents (density colored)
-    glBegin(GL_POINTS);
-    for (uint32_t i = 0; i < state.agents.size(); ++i) {
-        const auto neighbors = find_neighbors(state, i, NEIGHBOR_RADIUS);
-        color_from_density(neighbors.indices.size());
-        const auto& a = state.agents[i];
-        glVertex2f(norm_x(a.x), norm_y(a.y));
-    }
-    glEnd();
-
-    SDL_GL_SwapWindow(window);
-}
-
-void swarm_render_shutdown() {
-    if (gl_ctx) SDL_GL_DeleteContext(gl_ctx);
-    if (window) SDL_DestroyWindow(window);
-    SDL_Quit();
-}
+void swarm_render_shutdown(){if(gl_ctx)SDL_GL_DeleteContext(gl_ctx);if(window)SDL_DestroyWindow(window);SDL_Quit();}

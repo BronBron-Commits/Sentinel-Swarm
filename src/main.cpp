@@ -33,6 +33,14 @@ int main() {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT)
                 running = false;
+
+            if (e.type == SDL_KEYDOWN) {
+    if (e.key.keysym.sym == SDLK_1) swarm_render_set_formation(1);
+    if (e.key.keysym.sym == SDLK_2) swarm_render_set_formation(2);
+    if (e.key.keysym.sym == SDLK_3) swarm_render_set_formation(3);
+}
+
+
         }
 
         swarm_update(state, dt);
