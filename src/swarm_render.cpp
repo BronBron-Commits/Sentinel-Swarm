@@ -3,6 +3,7 @@
 
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
+#include <cmath>
 
 static SDL_Window* window = nullptr;
 static SDL_GLContext gl_ctx = nullptr;
@@ -18,6 +19,7 @@ static constexpr float WORLD_MAX_Y = 6.0f;
 
 // Must match simulation
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
+static constexpr int CIRCLE_SEGMENTS = 48;
 
 static float norm_x(float x) {
     return (x - WORLD_MIN_X) / (WORLD_MAX_X - WORLD_MIN_X) * 2.0f - 1.0f;
@@ -54,13 +56,32 @@ bool swarm_render_init(int width, int height) {
 
     glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
     glPointSize(8.0f);
-    glLineWidth(1.5f);
+    glLineWidth(1.0f);
 
     return true;
 }
 
+static void draw_circle(float cx, float cy, float r) {
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < CIRCLE_SEGMENTS; ++i) {
+        const float t = 2.0f * 3.1415926f * float(i) / float(CIRCLE_SEGMENTS);
+        const float x = cx + std::cos(t) * r;
+        const float y = cy + std::sin(t) * r;
+        glVertex2f(norm_x(x), norm_y(y));
+    }
+    glEnd();
+}
+
 void swarm_render_draw(const SwarmState& state) {
     glClear(GL_COLOR_BUFFER_BIT);
+
+    // =========================
+    // Neighbor Radius Circles
+    // =========================
+    glColor3f(0.25f, 0.35f, 0.45f);
+    for (const auto& agent : state.agents) {
+        draw_circle(agent.x, agent.y, NEIGHBOR_RADIUS);
+    }
 
     // =========================
     // Neighbor Links
@@ -73,7 +94,6 @@ void swarm_render_draw(const SwarmState& state) {
         const auto& a = state.agents[i];
 
         for (uint32_t n : neighbors.indices) {
-            // Draw each link once (avoid double-draw)
             if (n <= i)
                 continue;
 
@@ -91,10 +111,7 @@ void swarm_render_draw(const SwarmState& state) {
     glBegin(GL_POINTS);
     for (const auto& agent : state.agents) {
         glColor3f(0.3f, 0.8f, 1.0f);
-        glVertex2f(
-            norm_x(agent.x),
-            norm_y(agent.y)
-        );
+        glVertex2f(norm_x(agent.x), norm_y(agent.y));
     }
     glEnd();
 
