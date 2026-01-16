@@ -1,35 +1,32 @@
 #include "swarm_neighbors.hpp"
+#include <cmath>
 
-static inline float sqr(float v) {
-    return v * v;
-}
-
-NeighborList find_neighbors(
-    const SwarmState& state,
-    uint32_t self_index,
-    float radius
+void compute_neighbors(
+    SwarmState& state,
+    float radius,
+    std::vector<std::vector<uint32_t>>& out_neighbors
 ) {
-    NeighborList result;
     const float r2 = radius * radius;
+    const size_t n = state.agents.size();
 
-    const SwarmAgent& self = state.agents[self_index];
+    out_neighbors.clear();
+    out_neighbors.resize(n);
 
-    // Deterministic iteration:
-    // - forward index order
-    // - skip self explicitly
-    for (uint32_t i = 0; i < state.agents.size(); ++i) {
-        if (i == self_index)
-            continue;
+    for (size_t i = 0; i < n; ++i) {
+        auto& a = state.agents[i];
+        a.neighbor_count = 0;
 
-        const SwarmAgent& other = state.agents[i];
+        for (size_t j = 0; j < n; ++j) {
+            if (i == j) continue;
 
-        const float dx = other.x - self.x;
-        const float dy = other.y - self.y;
+            auto& b = state.agents[j];
+            float dx = b.x - a.x;
+            float dy = b.y - a.y;
 
-        if ((dx * dx + dy * dy) <= r2) {
-            result.indices.push_back(i);
+            if (dx * dx + dy * dy <= r2) {
+                out_neighbors[i].push_back(b.id);
+                a.neighbor_count++;
+            }
         }
     }
-
-    return result;
 }

@@ -3,20 +3,22 @@
 #include <cstdint>
 
 enum class FormationMode {
-    LINE  = 1,
-    ORBIT = 3
+    LINE,
+    ORBIT
 };
 
-struct SwarmAgent {
+struct Agent {
     uint32_t id;
-    float x;
-    float y;
-    float vx;
-    float vy;
+    float x, y;
+    float vx, vy;
+
+    // diagnostics
+    uint32_t neighbor_count = 0;
+    float error_mag = 0.0f;
 };
 
 struct SwarmState {
     uint64_t tick = 0;
     FormationMode formation = FormationMode::LINE;
-    std::vector<SwarmAgent> agents;
+    std::vector<Agent> agents;
 };

@@ -1,83 +1,54 @@
-#include "swarm_state.hpp"
+#include "swarm_update.hpp"
 #include "swarm_neighbors.hpp"
 #include <cmath>
 
-static void formation_slot(
-    const SwarmState& state,
-    uint32_t i,
-    float& sx,
-    float& sy
-) {
-    float cx = 0.0f, cy = 0.0f;
-    for (const auto& a : state.agents) {
-        cx += a.x;
-        cy += a.y;
-    }
-    cx /= state.agents.size();
-    cy /= state.agents.size();
-
-    const uint32_t n = state.agents.size();
-
-    switch (state.formation) {
-    case FormationMode::LINE: {
-        const float spacing = 1.2f;
-        const float start = cx - spacing * (n - 1) * 0.5f;
-        sx = start + i * spacing;
-        sy = cy;
-        break;
-    }
-    case FormationMode::ORBIT: {
-        const float r = 2.5f;
-        const float t = 2.0f * 3.1415926f * i / n;
-        sx = cx + std::cos(t) * r;
-        sy = cy + std::sin(t) * r;
-        break;
-    }
-    }
-}
+static constexpr float NEIGHBOR_RADIUS = 3.0f;
+static constexpr float K_FORM = 1.5f;
+static constexpr float K_DAMP = 0.9f;
+static constexpr float MAX_V = 5.0f;
 
 void swarm_update(SwarmState& state, float dt) {
-    state.tick++;
+    std::vector<std::vector<uint32_t>> neighbors;
+    compute_neighbors(state, NEIGHBOR_RADIUS, neighbors);
 
-    // Neighbor interaction forces
-    for (uint32_t i = 0; i < state.agents.size(); ++i) {
+    const size_t n = state.agents.size();
+
+    for (size_t i = 0; i < n; ++i) {
         auto& a = state.agents[i];
-        auto nb = find_neighbors(state, i, 3.5f);
 
-        for (uint32_t j : nb.indices) {
-            if (j == i) continue;
-            auto& b = state.agents[j];
+        float tx = a.x;
+        float ty = a.y;
 
-            float dx = b.x - a.x;
-            float dy = b.y - a.y;
-            float d2 = dx*dx + dy*dy + 0.001f;
+        if (state.formation == FormationMode::LINE) {
+            tx = float(a.id) * 2.0f;
+            ty = 0.0f;
+        }
+        else if (state.formation == FormationMode::ORBIT) {
+            float angle = float(a.id) / float(n) * 6.2831853f;
+            tx = std::cos(angle) * 5.0f;
+            ty = std::sin(angle) * 5.0f;
+        }
 
-            float force = 0.08f / d2;
-            a.vx += dx * force * dt;
-            a.vy += dy * force * dt;
+        float ex = tx - a.x;
+        float ey = ty - a.y;
+
+        a.error_mag = std::sqrt(ex * ex + ey * ey);
+
+        a.vx = a.vx * K_DAMP + ex * K_FORM * dt;
+        a.vy = a.vy * K_DAMP + ey * K_FORM * dt;
+
+        float v2 = a.vx * a.vx + a.vy * a.vy;
+        if (v2 > MAX_V * MAX_V) {
+            float inv = MAX_V / std::sqrt(v2);
+            a.vx *= inv;
+            a.vy *= inv;
         }
     }
 
-    // Formation control
-    constexpr float K_FORMATION = 1.2f;
-    constexpr float K_DAMPING   = 0.82f;
-
-    for (uint32_t i = 0; i < state.agents.size(); ++i) {
-        auto& a = state.agents[i];
-
-        float sx, sy;
-        formation_slot(state, i, sx, sy);
-
-        a.vx += (sx - a.x) * K_FORMATION * dt;
-        a.vy += (sy - a.y) * K_FORMATION * dt;
-
-        a.vx *= K_DAMPING;
-        a.vy *= K_DAMPING;
-    }
-
-    // Integrate
     for (auto& a : state.agents) {
         a.x += a.vx * dt;
         a.y += a.vy * dt;
     }
+
+    state.tick++;
 }
