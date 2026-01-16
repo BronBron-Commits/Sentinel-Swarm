@@ -4,7 +4,6 @@
 
 enum class FormationMode {
     LINE  = 1,
-    WEDGE = 2,
     ORBIT = 3
 };
 

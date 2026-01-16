@@ -26,12 +26,6 @@ static void formation_slot(
         sy = cy;
         break;
     }
-    case FormationMode::WEDGE: {
-        const float spacing = 1.0f;
-        sx = cx + i * spacing;
-        sy = cy + ((i % 2) ? i : -i) * 0.3f;
-        break;
-    }
     case FormationMode::ORBIT: {
         const float r = 2.5f;
         const float t = 2.0f * 3.1415926f * i / n;
@@ -45,7 +39,7 @@ static void formation_slot(
 void swarm_update(SwarmState& state, float dt) {
     state.tick++;
 
-    // --- Neighbor interaction forces ---
+    // Neighbor interaction forces
     for (uint32_t i = 0; i < state.agents.size(); ++i) {
         auto& a = state.agents[i];
         auto nb = find_neighbors(state, i, 3.5f);
@@ -64,7 +58,7 @@ void swarm_update(SwarmState& state, float dt) {
         }
     }
 
-    // --- Formation control forces ---
+    // Formation control
     constexpr float K_FORMATION = 1.2f;
     constexpr float K_DAMPING   = 0.82f;
 
@@ -81,7 +75,7 @@ void swarm_update(SwarmState& state, float dt) {
         a.vy *= K_DAMPING;
     }
 
-    // --- Integrate ---
+    // Integrate
     for (auto& a : state.agents) {
         a.x += a.vx * dt;
         a.y += a.vy * dt;

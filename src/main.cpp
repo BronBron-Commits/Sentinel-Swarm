@@ -39,10 +39,6 @@ int main() {
                     state.formation = FormationMode::LINE;
                     swarm_render_set_formation(1);
                 }
-                if (e.key.keysym.sym == SDLK_2) {
-                    state.formation = FormationMode::WEDGE;
-                    swarm_render_set_formation(2);
-                }
                 if (e.key.keysym.sym == SDLK_3) {
                     state.formation = FormationMode::ORBIT;
                     swarm_render_set_formation(3);
