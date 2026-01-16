@@ -10,6 +10,7 @@ add_subdirectory(external/sentinel-orchestra)
 add_executable(sentinel-swarm
     src/main.cpp
     src/swarm_update.cpp
+    src/swarm_neighbors.cpp
 )
 
 target_include_directories(sentinel-swarm PRIVATE
