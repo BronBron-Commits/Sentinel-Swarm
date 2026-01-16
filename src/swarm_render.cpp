@@ -20,6 +20,7 @@ static constexpr float WORLD_MAX_Y = 6.0f;
 // Must match simulation
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
 static constexpr int CIRCLE_SEGMENTS = 48;
+static constexpr int MAX_NEIGHBORS = 6;
 
 static float norm_x(float x) {
     return (x - WORLD_MIN_X) / (WORLD_MAX_X - WORLD_MIN_X) * 2.0f - 1.0f;
@@ -72,6 +73,14 @@ static void draw_circle(float cx, float cy, float r) {
     glEnd();
 }
 
+static void color_from_density(int neighbors) {
+    const float t = std::fmin(float(neighbors) / float(MAX_NEIGHBORS), 1.0f);
+    const float r = t;
+    const float g = 0.2f + 0.8f * (1.0f - std::fabs(t - 0.5f) * 2.0f);
+    const float b = 1.0f - t;
+    glColor3f(r, g, b);
+}
+
 void swarm_render_draw(const SwarmState& state) {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -106,12 +115,14 @@ void swarm_render_draw(const SwarmState& state) {
     glEnd();
 
     // =========================
-    // Agents
+    // Agents (colored by density)
     // =========================
     glBegin(GL_POINTS);
-    for (const auto& agent : state.agents) {
-        glColor3f(0.3f, 0.8f, 1.0f);
-        glVertex2f(norm_x(agent.x), norm_y(agent.y));
+    for (uint32_t i = 0; i < state.agents.size(); ++i) {
+        const auto neighbors = find_neighbors(state, i, NEIGHBOR_RADIUS);
+        color_from_density(int(neighbors.indices.size()));
+        const auto& a = state.agents[i];
+        glVertex2f(norm_x(a.x), norm_y(a.y));
     }
     glEnd();
 
