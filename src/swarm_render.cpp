@@ -19,14 +19,21 @@ static SDL_GLContext gl_ctx = nullptr;
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
 static constexpr int   CIRCLE_SEGMENTS = 48;
 
+static constexpr float GRID_MIN_X = -10.f;
+static constexpr float GRID_MAX_X =  20.f;
+static constexpr float GRID_MIN_Y = -10.f;
+static constexpr float GRID_MAX_Y =  10.f;
+static constexpr float GRID_STEP  =  1.f;
+static constexpr int   GRID_MAJOR =  5;
+
 static void setup_camera() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(-2, 12, -6, 6, -10, 10);
+    glOrtho(-2, 12, -6, 6, -20, 20);
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(0.f, -1.5f, -4.f);
+    glTranslatef(0.f, -1.5f, -6.f);
     glRotatef(35.f, 1.f, 0.f, 0.f);
 }
 
@@ -86,6 +93,32 @@ static void draw_agent(float x, float y, float z, float size) {
     glEnd();
 }
 
+static void draw_grid() {
+    glBegin(GL_LINES);
+    for (float x = GRID_MIN_X; x <= GRID_MAX_X; x += GRID_STEP) {
+        bool major = (int(x) % GRID_MAJOR) == 0;
+        if (major)
+            glColor3f(0.25f, 0.25f, 0.3f);
+        else
+            glColor3f(0.15f, 0.15f, 0.2f);
+
+        glVertex3f(x, GRID_MIN_Y, 0.f);
+        glVertex3f(x, GRID_MAX_Y, 0.f);
+    }
+
+    for (float y = GRID_MIN_Y; y <= GRID_MAX_Y; y += GRID_STEP) {
+        bool major = (int(y) % GRID_MAJOR) == 0;
+        if (major)
+            glColor3f(0.25f, 0.25f, 0.3f);
+        else
+            glColor3f(0.15f, 0.15f, 0.2f);
+
+        glVertex3f(GRID_MIN_X, y, 0.f);
+        glVertex3f(GRID_MAX_X, y, 0.f);
+    }
+    glEnd();
+}
+
 bool swarm_render_init(int w, int h) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) return false;
 
@@ -106,7 +139,7 @@ bool swarm_render_init(int w, int h) {
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.08f, 1.f);
-    glLineWidth(1.2f);
+    glLineWidth(1.0f);
 
     return true;
 }
@@ -115,7 +148,10 @@ void swarm_render_draw(const SwarmState& s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup_camera();
 
-    // Neighbor radius (ground plane)
+    // Grid floor
+    draw_grid();
+
+    // Neighbor radius
     glColor3f(0.25f, 0.35f, 0.45f);
     for (auto& a : s.agents)
         draw_circle(a.x, a.y, NEIGHBOR_RADIUS);
@@ -135,11 +171,11 @@ void swarm_render_draw(const SwarmState& s) {
     }
     glEnd();
 
-    // Agents (3D height)
+    // Agents
     for (uint32_t i = 0; i < s.agents.size(); i++) {
         float h = visual_height(s, i);
         float z = h * 1.5f;
-        float size = 0.1f + h * 0.1f;
+        float size = 0.12f + h * 0.12f;
 
         glColor3f(h, 0.3f * (1.f - h), 1.f - h);
 
