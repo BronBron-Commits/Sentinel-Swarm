@@ -7,10 +7,15 @@
 
 enum class Formation { LINE, ORBIT };
 static Formation g_formation = Formation::LINE;
+static bool g_use_perspective = false;
 
 void swarm_render_set_formation(int f) {
     if (f == 1) g_formation = Formation::LINE;
     if (f == 3) g_formation = Formation::ORBIT;
+}
+
+void swarm_render_toggle_perspective() {
+    g_use_perspective = !g_use_perspective;
 }
 
 static SDL_Window* window = nullptr;
@@ -19,6 +24,7 @@ static SDL_GLContext gl_ctx = nullptr;
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
 static constexpr int   CIRCLE_SEGMENTS = 48;
 
+/* Grid parameters */
 static constexpr float GRID_MIN_X = -10.f;
 static constexpr float GRID_MAX_X =  20.f;
 static constexpr float GRID_MIN_Y = -10.f;
@@ -29,12 +35,24 @@ static constexpr int   GRID_MAJOR =  5;
 static void setup_camera() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(-2, 12, -6, 6, -20, 20);
+
+    if (g_use_perspective) {
+        float aspect = 800.f / 600.f;
+        glFrustum(-aspect, aspect, -1.0, 1.0, 2.0, 50.0);
+    } else {
+        glOrtho(-2, 12, -6, 6, -20, 20);
+    }
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glTranslatef(0.f, -1.5f, -6.f);
-    glRotatef(35.f, 1.f, 0.f, 0.f);
+
+    if (g_use_perspective) {
+        glTranslatef(0.f, -2.5f, -14.f);
+        glRotatef(55.f, 1.f, 0.f, 0.f);
+    } else {
+        glTranslatef(0.f, -1.5f, -6.f);
+        glRotatef(35.f, 1.f, 0.f, 0.f);
+    }
 }
 
 static void center_of_mass(const SwarmState& s, float& cx, float& cy) {
@@ -95,12 +113,11 @@ static void draw_agent(float x, float y, float z, float size) {
 
 static void draw_grid() {
     glBegin(GL_LINES);
+
     for (float x = GRID_MIN_X; x <= GRID_MAX_X; x += GRID_STEP) {
         bool major = (int(x) % GRID_MAJOR) == 0;
-        if (major)
-            glColor3f(0.25f, 0.25f, 0.3f);
-        else
-            glColor3f(0.15f, 0.15f, 0.2f);
+        if (major) glColor3f(0.25f, 0.25f, 0.3f);
+        else       glColor3f(0.15f, 0.15f, 0.2f);
 
         glVertex3f(x, GRID_MIN_Y, 0.f);
         glVertex3f(x, GRID_MAX_Y, 0.f);
@@ -108,14 +125,13 @@ static void draw_grid() {
 
     for (float y = GRID_MIN_Y; y <= GRID_MAX_Y; y += GRID_STEP) {
         bool major = (int(y) % GRID_MAJOR) == 0;
-        if (major)
-            glColor3f(0.25f, 0.25f, 0.3f);
-        else
-            glColor3f(0.15f, 0.15f, 0.2f);
+        if (major) glColor3f(0.25f, 0.25f, 0.3f);
+        else       glColor3f(0.15f, 0.15f, 0.2f);
 
         glVertex3f(GRID_MIN_X, y, 0.f);
         glVertex3f(GRID_MAX_X, y, 0.f);
     }
+
     glEnd();
 }
 
@@ -126,7 +142,7 @@ bool swarm_render_init(int w, int h) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
     window = SDL_CreateWindow(
-        "Sentinel Swarm (3D)",
+        "Sentinel Swarm",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         w, h,
@@ -148,15 +164,15 @@ void swarm_render_draw(const SwarmState& s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup_camera();
 
-    // Grid floor
+    /* Grid floor */
     draw_grid();
 
-    // Neighbor radius
+    /* Neighbor radius */
     glColor3f(0.25f, 0.35f, 0.45f);
     for (auto& a : s.agents)
         draw_circle(a.x, a.y, NEIGHBOR_RADIUS);
 
-    // Neighbor links
+    /* Neighbor links */
     glBegin(GL_LINES);
     glColor3f(0.2f, 0.5f, 0.7f);
     for (uint32_t i = 0; i < s.agents.size(); i++) {
@@ -171,7 +187,7 @@ void swarm_render_draw(const SwarmState& s) {
     }
     glEnd();
 
-    // Agents
+    /* Agents */
     for (uint32_t i = 0; i < s.agents.size(); i++) {
         float h = visual_height(s, i);
         float z = h * 1.5f;
