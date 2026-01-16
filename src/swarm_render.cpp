@@ -22,7 +22,6 @@ static SDL_Window* window = nullptr;
 static SDL_GLContext gl_ctx = nullptr;
 
 static constexpr float NEIGHBOR_RADIUS = 3.5f;
-static constexpr int   CIRCLE_SEGMENTS = 48;
 
 /* Grid parameters */
 static constexpr float GRID_MIN_X = -10.f;
@@ -93,21 +92,47 @@ static float visual_height(const SwarmState& s, int i) {
     return fminf(err / 2.5f, 1.f);
 }
 
-static void draw_circle(float cx, float cy, float r) {
-    glBegin(GL_LINE_LOOP);
-    for (int i = 0; i < CIRCLE_SEGMENTS; i++) {
-        float t = 2.f * 3.1415926f * i / CIRCLE_SEGMENTS;
-        glVertex3f(cx + cosf(t)*r, cy + sinf(t)*r, 0.f);
-    }
-    glEnd();
-}
+static void draw_cube(float x, float y, float z, float s) {
+    float h = s * 0.5f;
 
-static void draw_agent(float x, float y, float z, float size) {
     glBegin(GL_QUADS);
-    glVertex3f(x - size, y - size, z);
-    glVertex3f(x + size, y - size, z);
-    glVertex3f(x + size, y + size, z);
-    glVertex3f(x - size, y + size, z);
+
+    /* Top */
+    glVertex3f(x-h, y-h, z+h);
+    glVertex3f(x+h, y-h, z+h);
+    glVertex3f(x+h, y+h, z+h);
+    glVertex3f(x-h, y+h, z+h);
+
+    /* Bottom */
+    glVertex3f(x-h, y-h, z-h);
+    glVertex3f(x+h, y-h, z-h);
+    glVertex3f(x+h, y+h, z-h);
+    glVertex3f(x-h, y+h, z-h);
+
+    /* Front */
+    glVertex3f(x-h, y+h, z-h);
+    glVertex3f(x+h, y+h, z-h);
+    glVertex3f(x+h, y+h, z+h);
+    glVertex3f(x-h, y+h, z+h);
+
+    /* Back */
+    glVertex3f(x-h, y-h, z-h);
+    glVertex3f(x+h, y-h, z-h);
+    glVertex3f(x+h, y-h, z+h);
+    glVertex3f(x-h, y-h, z+h);
+
+    /* Left */
+    glVertex3f(x-h, y-h, z-h);
+    glVertex3f(x-h, y+h, z-h);
+    glVertex3f(x-h, y+h, z+h);
+    glVertex3f(x-h, y-h, z+h);
+
+    /* Right */
+    glVertex3f(x+h, y-h, z-h);
+    glVertex3f(x+h, y+h, z-h);
+    glVertex3f(x+h, y+h, z+h);
+    glVertex3f(x+h, y-h, z+h);
+
     glEnd();
 }
 
@@ -155,7 +180,6 @@ bool swarm_render_init(int w, int h) {
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.05f, 0.05f, 0.08f, 1.f);
-    glLineWidth(1.0f);
 
     return true;
 }
@@ -164,39 +188,17 @@ void swarm_render_draw(const SwarmState& s) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     setup_camera();
 
-    /* Grid floor */
     draw_grid();
 
-    /* Neighbor radius */
-    glColor3f(0.25f, 0.35f, 0.45f);
-    for (auto& a : s.agents)
-        draw_circle(a.x, a.y, NEIGHBOR_RADIUS);
-
-    /* Neighbor links */
-    glBegin(GL_LINES);
-    glColor3f(0.2f, 0.5f, 0.7f);
-    for (uint32_t i = 0; i < s.agents.size(); i++) {
-        auto nb = find_neighbors(s, i, NEIGHBOR_RADIUS);
-        auto& a = s.agents[i];
-        for (uint32_t j : nb.indices) {
-            if (j <= i) continue;
-            auto& b = s.agents[j];
-            glVertex3f(a.x, a.y, 0.f);
-            glVertex3f(b.x, b.y, 0.f);
-        }
-    }
-    glEnd();
-
-    /* Agents */
     for (uint32_t i = 0; i < s.agents.size(); i++) {
         float h = visual_height(s, i);
         float z = h * 1.5f;
-        float size = 0.12f + h * 0.12f;
+        float size = 0.3f + h * 0.25f;
 
         glColor3f(h, 0.3f * (1.f - h), 1.f - h);
 
         auto& a = s.agents[i];
-        draw_agent(a.x, a.y, z, size);
+        draw_cube(a.x, a.y, z + size * 0.5f, size);
     }
 
     SDL_GL_SwapWindow(window);
