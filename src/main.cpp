@@ -1,5 +1,8 @@
 #include <iostream>
+#include <SDL2/SDL.h>
+
 #include "swarm_state.hpp"
+#include "swarm_render.hpp"
 
 void swarm_update(SwarmState& state, float dt);
 
@@ -7,7 +10,6 @@ int main() {
     SwarmState state{};
     state.tick = 0;
 
-    // Deterministic agent creation
     for (uint32_t i = 0; i < 6; ++i) {
         state.agents.push_back({
             i,
@@ -18,19 +20,27 @@ int main() {
         });
     }
 
-    constexpr float dt = 0.016f;
-
-    for (int step = 0; step < 10; ++step) {
-        swarm_update(state, dt);
-
-        std::cout << "tick " << state.tick << "\n";
-        for (const auto& a : state.agents) {
-            std::cout
-                << "  agent " << a.id
-                << " pos=(" << a.x << "," << a.y << ")"
-                << " vel=(" << a.vx << "," << a.vy << ")\n";
-        }
+    if (!swarm_render_init(800, 600)) {
+        std::cerr << "Failed to init renderer\n";
+        return 1;
     }
 
+    constexpr float dt = 0.016f;
+    bool running = true;
+
+    while (running) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT)
+                running = false;
+        }
+
+        swarm_update(state, dt);
+        swarm_render_draw(state);
+
+        SDL_Delay(16);
+    }
+
+    swarm_render_shutdown();
     return 0;
 }
